@@ -1,3 +1,5 @@
+extern crate rand;
+use crate::rand::Rng;
 use std::env;
 use std::fs;
 use std::io;
@@ -7,7 +9,7 @@ use std::time::Duration;
 struct Chip8 {
     memory: [u8; 4096],
     registers: [u8; 16],
-    memr_addr: usize,
+    mem_addr_register: usize,
     delay: u8,
     sound: u8,
     pc: usize,
@@ -175,7 +177,20 @@ impl Chip8 {
                         _ => unreachable!("Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
                     };
                     self.write_register(dst, res);
-                }
+                },
+                (9, reg1, reg2, 0) => {
+                    if self.read_register(reg1) != self.read_register(reg2) {
+                        self.pc += 2;
+                    }
+                },
+                (0xA, _, _, _) => self.mem_addr_register = addr as usize,
+                (0xB, _, _, _) => self.jump(addr + self.read_register(0) as u16),
+                (0xC, reg, _, _) => {
+                    let mut rng = rand::thread_rng();
+                    let rand: u8 = rng.gen();
+
+                    self.write_register(reg, rand & lower_word)
+                },
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
 
@@ -192,7 +207,7 @@ impl Default for Chip8 {
         Chip8 {
             memory: [0; 4096],
             registers: [0; 16],
-            memr_addr: 0,
+            mem_addr_register: 0,
             delay: 0,
             sound: 0,
             pc: 512,
