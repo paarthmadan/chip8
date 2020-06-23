@@ -20,19 +20,19 @@ pub struct Chip8 { memory: [u8; 4096],
 
 impl Chip8 {
     const MEM_START: usize = 512;
-    fn load_word(&self, ptr: usize) -> u8 {
-        self.memory[ptr]
+    fn store_word(&mut self, offset: usize, word: u8) {
+        self.memory[self.mem_addr_register + offset] = word;
     }
 
-    fn load_word_from_mem_addr_register(&self, offset: u8) -> u8 {
-        self.load_word(self.mem_addr_register + offset as usize)
+    fn load_word(&self, ptr: usize) -> u8 {
+        self.memory[ptr]
     }
 
     fn load_sprite(&self, n: u8) -> Vec<u8> {
         let mut sprite: Vec<u8> = Vec::with_capacity(n as usize);
         
         for i in 0..n {
-            sprite.push(self.load_word_from_mem_addr_register(i));
+            sprite.push(self.load_word(self.mem_addr_register + i as usize));
         }
 
         sprite
@@ -92,6 +92,9 @@ impl Chip8 {
             let d = (0x0F) & lower_word;
 
             let addr: u16 = b as u16 + lower_word as u16;
+
+            println!("{:x?}{:x?}", upper_word, lower_word);
+            println!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d);
 
             // Instruction Execute
             match (a, b, c, d) {
@@ -181,9 +184,34 @@ impl Chip8 {
                 },
                 (0xD, x, y, n) =>  {
                     let sprite = self.load_sprite(n);
-                    let flag = self.display.write(x, y, &sprite);
+                    let flag = self.display.write(self.read_register(x), self.read_register(y), &sprite);
 
                     self.write_flag(flag as u8);
+                },
+                (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
+                (0xF, reg, 0, 0xA) => println!("Wait for kp"),
+                (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
+                (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
+                (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
+                (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
+                (0xF, reg, 3, 3) => {
+                    let dec = self.read_register(reg);
+                    self.store_word(0, dec / 100);
+                    self.store_word(1, dec / 10);
+                    self.store_word(2, dec % 10);
+                },
+                (0xF, reg, 5, 5) => {
+                    let register_vals: Vec<u8> = self.registers[0..reg as usize].iter().map(|register| self.read_register(*register)).collect();
+                    for (i, val) in register_vals.iter().enumerate() {
+                        self.store_word(i, *val);
+                    }
+                },
+                (0xF, reg, 6, 5) => {
+                    let memory_vals: Vec<u8> = (0..reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
+
+                    for (i, val) in memory_vals.iter().enumerate() {
+                        self.write_register(i as u8, *val);
+                    }
                 }
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
@@ -193,6 +221,7 @@ impl Chip8 {
             self.display.dump();
 
             thread::sleep(Duration::from_millis(1000 / 60));
+            print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
         }
     }
 
