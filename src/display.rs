@@ -1,5 +1,5 @@
 pub struct Display {
-    lcd: [[char; 64]; 32]
+    lcd: [[u8; 64]; 32]
 }
 
 impl Display {
@@ -29,15 +29,26 @@ impl Display {
             }
             println!("");
         }
+        println!("");
+    }
+
+    pub fn write(&mut self, x: u8, y: u8, sprite: &Vec<u8>) {
+        for (i, row) in sprite.iter().enumerate() {
+            for x_offset in 0..=7 {
+                let px = (x + x_offset) % 64;
+                let py = (y + i as u8) % 32;
+                self.lcd[py as usize][px as usize] = 0x01 & (row >> (7 - (x_offset)))
+            }
+        }
     }
 
     pub fn clear(&mut self) {
-        self.lcd = [[' '; 64]; 32];
+        self.lcd = [[0; 64]; 32];
     }
 }
 
 impl Default for Display {
     fn default() -> Self {
-        Display { lcd: [[' '; 64]; 32] }
+        Display { lcd: [[0; 64]; 32] }
     }
 }

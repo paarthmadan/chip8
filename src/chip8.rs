@@ -24,6 +24,20 @@ impl Chip8 {
         self.memory[ptr]
     }
 
+    fn load_word_from_mem_addr_register(&self, offset: u8) -> u8 {
+        self.load_word(self.mem_addr_register + offset as usize)
+    }
+
+    fn load_sprite(&self, n: u8) -> Vec<u8> {
+        let mut sprite: Vec<u8> = Vec::with_capacity(n as usize);
+        
+        for i in 0..n {
+            sprite.push(self.load_word_from_mem_addr_register(i));
+        }
+
+        sprite
+    }
+
     fn return_from_routine(&mut self) {
         self.pc = self.stack[self.sp];
         self.sp -= 1;
@@ -165,12 +179,28 @@ impl Chip8 {
 
                     self.write_register(reg, rand & lower_word)
                 },
+                (0xD, x, y, n) =>  {
+                    let sprite = self.load_sprite(n);
+                    self.display.write(x, y, &sprite);
+                }
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
 
             self.pc += 2;
 
+            self.display.dump();
+
+            self.mem_addr_register = 25;
+            let sprite = self.load_sprite(5);
+            self.display.write(0, 0, &sprite);
+            self.mem_addr_register = 60;
+            let sprite = self.load_sprite(5);
+            self.display.write(2, 2, &sprite);
+            self.display.dump();
+
             thread::sleep(Duration::from_millis(1000 / 60));
+
+            break;
         }
     }
 
