@@ -25,21 +25,31 @@ impl Display {
     pub fn dump(&self) {
         for row in &self.lcd {
             for c in row.iter() {
-                print!("{}", c);
+                print!("{}", if *c == 1 { '*' } else { ' ' });
             }
             println!("");
         }
         println!("");
     }
 
-    pub fn write(&mut self, x: u8, y: u8, sprite: &Vec<u8>) {
+    pub fn write(&mut self, x: u8, y: u8, sprite: &Vec<u8>) -> bool {
+        let mut changed = false;
         for (i, row) in sprite.iter().enumerate() {
             for x_offset in 0..=7 {
                 let px = (x + x_offset) % 64;
                 let py = (y + i as u8) % 32;
-                self.lcd[py as usize][px as usize] = 0x01 & (row >> (7 - (x_offset)))
+
+                let curr = self.lcd[y as usize][x as usize];
+                let new = 0x01 & (row >> (7 - (x_offset)));
+
+                self.lcd[py as usize][px as usize] = curr ^ new;
+
+                if !changed && curr == 1 && curr ^ new == 0 {
+                    changed = true;
+                }
             }
         }
+        return changed;
     }
 
     pub fn clear(&mut self) {

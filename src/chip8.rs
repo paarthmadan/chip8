@@ -181,7 +181,9 @@ impl Chip8 {
                 },
                 (0xD, x, y, n) =>  {
                     let sprite = self.load_sprite(n);
-                    self.display.write(x, y, &sprite);
+                    let flag = self.display.write(x, y, &sprite);
+
+                    self.write_flag(flag as u8);
                 }
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
@@ -190,17 +192,7 @@ impl Chip8 {
 
             self.display.dump();
 
-            self.mem_addr_register = 25;
-            let sprite = self.load_sprite(5);
-            self.display.write(0, 0, &sprite);
-            self.mem_addr_register = 60;
-            let sprite = self.load_sprite(5);
-            self.display.write(2, 2, &sprite);
-            self.display.dump();
-
             thread::sleep(Duration::from_millis(1000 / 60));
-
-            break;
         }
     }
 
