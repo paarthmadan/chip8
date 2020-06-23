@@ -67,7 +67,6 @@ impl Chip8 {
         self.sp -= 1;
     }
 
-    // Accepts 12-bit memory address
     fn jump(&mut self, addr: u16) {
         self.pc = addr as usize;
     }
@@ -106,7 +105,22 @@ impl Chip8 {
                 (2, _, _, _) => {
                     self.call(addr);
                     continue;
-                }
+                },
+                (3, reg, _, _) => {
+                    if self.registers[reg as usize] == lower_word {
+                        self.pc += 2;
+                    }
+                },
+                (4, reg, _, _) => {
+                    if self.registers[reg as usize] != lower_word {
+                        self.pc += 2;
+                    }
+                },
+                (5, reg1, reg2, 0) => {
+                    if self.registers[reg1 as usize] == self.registers[reg2 as usize] {
+                        self.pc += 2;
+                    }
+                },
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
 
