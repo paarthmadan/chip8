@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
 use std::io;
+use std::thread;
+use std::time::Duration;
 // memr_addr is referred to as _I_ in spec
 struct Chip8 {
     memory: [u8; 4096],
@@ -10,7 +12,7 @@ struct Chip8 {
     sound: u8,
     pc: usize,
     sp: usize,
-    stack: [u16; 16],
+    stack: [usize; 16],
     display: Display,
 }
 
@@ -26,6 +28,10 @@ impl Display {
             }
             println!("");
         }
+    }
+
+    fn clear(&mut self) {
+        self.lcd = [[' '; 64]; 32];
     }
 }
 
@@ -56,25 +62,58 @@ impl Chip8 {
         self.memory[ptr]
     }
 
+    fn return_from_routine(&mut self) {
+        self.pc = self.stack[self.sp];
+        self.sp -= 1;
+    }
+
+    // Accepts 12-bit memory address
+    fn jump(&mut self, addr: u16) {
+        self.pc = addr as usize;
+    }
+
+    fn call(&mut self, addr: u16) {
+        self.sp += 1;
+        self.stack[self.sp] = self.pc;
+        self.pc = addr as usize;
+    }
+
     fn run(&mut self) {
-        // Instruction Fetch (Load instruction from memory)
-        let upper_word = self.load_word(self.pc);
-        let lower_word = self.load_word(self.pc + 1);
+        loop {
+            // Instruction Fetch (Load instruction from memory)
+            let upper_word = self.load_word(self.pc);
+            let lower_word = self.load_word(self.pc + 1);
 
-        let a = upper_word >> 4;
-        let b = (0x0F) & upper_word;
-        let c = lower_word >> 4;
-        let d = (0x0F) & lower_word;
+            // Instruction Decode
+            let a = upper_word >> 4;
+            let b = (0x0F) & upper_word;
+            let c = lower_word >> 4;
+            let d = (0x0F) & lower_word;
 
-        match (a, b, c, d) {
-            (0, 0, 0xE, 0) => println!("clear"),
-            (0, 0, 0xE, 0xE) => println!("ret"),
-            (1, _, _, _) => println!("jump"),
-            (2, _, _, _) => println!("call"),
-            _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+            let addr: u16 = b as u16 + lower_word as u16;
+
+            // Instruction Execute
+            match (a, b, c, d) {
+                (0, 0, 0xE, 0) => self.display.clear(),
+                (0, 0, 0xE, 0xE) => {
+                    self.return_from_routine();
+                    continue;
+                }
+                (1, _, _, _) =>  {
+                    self.jump(addr);
+                    continue;
+                }
+                (2, _, _, _) => {
+                    self.call(addr);
+                    continue;
+                }
+                _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+            }
+
+            self.pc += 2;
+
+            thread::sleep(Duration::from_millis(1000 / 60));
         }
-        // Instruction Decode (Figure out what to do)
-        // Instruction Execute
     }
 
 }
