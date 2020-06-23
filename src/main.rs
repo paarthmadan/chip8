@@ -1,3 +1,6 @@
+use std::env;
+use std::fs;
+use std::io;
 // memr_addr is referred to as _I_ in spec
 struct Chip8 {
     memory: [u8; 4096],
@@ -32,12 +35,21 @@ impl Default for Display {
     }
 }
 
-struct Cartridge {
-}
-
 impl Chip8 {
-    fn load(&mut self, rom: Cartridge) {
-        // load program into memory
+    const MEM_START: usize = 512;
+
+    fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
+        let bytes = fs::read(rom)?;
+
+        let prog_end = Chip8::MEM_START + bytes.len();
+
+        if prog_end > 4096 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "ROM exceeds 4096 bytes"))
+        }
+
+        self.memory[Chip8::MEM_START..prog_end].copy_from_slice(&bytes);
+
+        Ok(())
     }
 
     fn load_word(&self, ptr: usize) -> u8 {
@@ -75,7 +87,7 @@ impl Default for Chip8 {
             memr_addr: 0,
             delay: 0,
             sound: 0,
-            pc: 0,
+            pc: 512,
             sp: 0,
             stack: [0; 16],
             display: Display::default(),
@@ -85,9 +97,22 @@ impl Default for Chip8 {
 
 
 fn main () {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: cargo run <file>");
+        std::process::exit(1);
+    }
+
+    let file = &args[1];
+
     let mut chip = Chip8::default();
-    chip.memory[0] = 0x00;
-    chip.memory[1] = 0x00;
+
+    if chip.load_rom(file).is_err() {
+        eprintln!("Could not load ROM!");
+        std::process::exit(1);
+    }
+
     println!("Chip8 Emulator!");
     chip.run();
 }
