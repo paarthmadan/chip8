@@ -91,10 +91,7 @@ impl Chip8 {
             let c = lower_word >> 4;
             let d = (0x0F) & lower_word;
 
-            let addr: u16 = b as u16 + lower_word as u16;
-
-            println!("{:x?}{:x?}", upper_word, lower_word);
-            println!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d);
+            let addr: u16 = ((b as u16) << 8)  + lower_word as u16;
 
             // Instruction Execute
             match (a, b, c, d) {

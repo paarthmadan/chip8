@@ -39,7 +39,7 @@ impl Display {
                 let px = (x + x_offset) % 64;
                 let py = (y + i as u8) % 32;
 
-                let curr = self.lcd[y as usize][x as usize];
+                let curr = self.lcd[py as usize][px as usize];
                 let new = 0x01 & (row >> (7 - (x_offset)));
 
                 self.lcd[py as usize][px as usize] = curr ^ new;
