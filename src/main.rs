@@ -77,6 +77,18 @@ impl Chip8 {
         self.pc = addr as usize;
     }
 
+    fn read_register(&self, reg: u8) -> u8 {
+        self.registers[reg as usize]
+    }
+
+    fn write_register(&mut self, reg: u8, value: u8) {
+        self.registers[reg as usize] = value;
+    }
+
+    fn write_flag(&mut self, value: u8) {
+        self.write_register(0xF, value);
+    }
+
     fn run(&mut self) {
         loop {
             // Instruction Fetch (Load instruction from memory)
@@ -107,20 +119,63 @@ impl Chip8 {
                     continue;
                 },
                 (3, reg, _, _) => {
-                    if self.registers[reg as usize] == lower_word {
+                    if self.read_register(reg) == lower_word {
                         self.pc += 2;
                     }
                 },
                 (4, reg, _, _) => {
-                    if self.registers[reg as usize] != lower_word {
+                    if self.read_register(reg) != lower_word {
                         self.pc += 2;
                     }
                 },
                 (5, reg1, reg2, 0) => {
-                    if self.registers[reg1 as usize] == self.registers[reg2 as usize] {
+                    if self.read_register(reg1) == self.read_register(reg2) {
                         self.pc += 2;
                     }
                 },
+                (6, dst, _, _) => self.write_register(dst, lower_word),
+                (7, dst, _, _) => self.write_register(dst, self.read_register(dst) + lower_word),
+                (8, dst, src, flag) => {
+                    let (dst_val, src_val) = (self.read_register(dst), self.read_register(src));
+                    let res = match flag {
+                        0 => src_val,
+                        1 => dst_val | src_val,
+                        2 => dst_val & src_val,
+                        3 => dst_val ^ src_val,
+                        4 => {
+                            let (sum, overflow) = dst_val.overflowing_add(src_val);
+                            self.write_flag(overflow as u8);
+
+                            sum
+                        },
+                        5 => {
+                            let (diff, borrow) = dst_val.overflowing_sub(src_val);
+                            self.write_flag(!borrow as u8);
+
+                            diff
+                        },
+                        6 => {
+                            let lsb = 0x01 & dst_val;
+                            self.write_flag(lsb);
+
+                            dst_val >> 1
+                        }
+                        7 => {
+                            let (diff, borrow) = src_val.overflowing_sub(dst_val);
+                            self.write_flag(!borrow as u8);
+
+                            diff
+                        },
+                        0xE => {
+                            let msb = 0x10 & dst_val;
+                            self.write_flag(msb);
+
+                            dst_val << 1
+                        },
+                        _ => unreachable!("Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+                    };
+                    self.write_register(dst, res);
+                }
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
 
