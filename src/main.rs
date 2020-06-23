@@ -14,15 +14,16 @@ fn main () {
         std::process::exit(1);
     }
 
-    let file = &args[1];
+    let filename = &args[1];
 
     let mut chip = Chip8::default();
 
-    if chip.load_rom(file).is_err() {
-        eprintln!("Could not load ROM!");
+    if chip.load_rom(filename).is_err() {
+        eprintln!("Could not load ROM from: {}", filename);
         std::process::exit(1);
     }
 
     println!("Chip8 Emulator!");
+
     chip.run();
 }

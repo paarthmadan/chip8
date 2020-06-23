@@ -143,7 +143,7 @@ impl Chip8 {
                             diff
                         },
                         0xE => {
-                            let msb = 0x10 & dst_val;
+                            let msb = dst_val >> 7;
                             self.write_flag(msb);
 
                             dst_val << 1
@@ -178,8 +178,11 @@ impl Chip8 {
 
 impl Default for Chip8 {
     fn default() -> Self {
+        let mut memory = [0; 4096];
+        memory[0..Display::DIGIT_SPRITES.len()].copy_from_slice(&Display::DIGIT_SPRITES);
+
         Chip8 {
-            memory: [0; 4096],
+            memory: memory,
             registers: [0; 16],
             mem_addr_register: 0,
             delay: 0,
