@@ -199,10 +199,15 @@ impl Chip8 {
                 (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
                 (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
                 (0xF, reg, 3, 3) => {
-                    let dec = self.read_register(reg);
+                    let mut dec = self.read_register(reg);
+
                     self.store_word(0, dec / 100);
+                    dec %= 100;
+
                     self.store_word(1, dec / 10);
-                    self.store_word(2, dec % 10);
+                    dec %= 10;
+
+                    self.store_word(2, dec);
                 },
                 (0xF, reg, 5, 5) => {
                     let register_vals: Vec<u8> = self.registers[0..reg as usize].iter().map(|register| self.read_register(*register)).collect();
