@@ -6,7 +6,6 @@ use std::io;
 use std::thread;
 use std::time::Duration;
 
-// memr_addr is referred to as _I_ in spec
 pub struct Chip8 { memory: [u8; 4096],
     registers: [u8; 16],
     mem_addr_register: usize,
@@ -39,8 +38,8 @@ impl Chip8 {
     }
 
     fn return_from_routine(&mut self) {
-        self.pc = self.stack[self.sp];
         self.sp -= 1;
+        self.pc = self.stack[self.sp];
     }
 
     fn jump(&mut self, addr: u16) {
@@ -48,8 +47,8 @@ impl Chip8 {
     }
 
     fn call(&mut self, addr: u16) {
+        self.stack[self.sp] = self.pc + 2;
         self.sp += 1;
-        self.stack[self.sp] = self.pc;
         self.pc = addr as usize;
     }
 
@@ -99,7 +98,8 @@ impl Chip8 {
                 (0, 0, 0xE, 0xE) => {
                     self.return_from_routine();
                     continue;
-                }
+                },
+                (0, _, _, _) => unimplemented!{},
                 (1, _, _, _) =>  {
                     self.jump(addr);
                     continue;
@@ -124,7 +124,7 @@ impl Chip8 {
                     }
                 },
                 (6, dst, _, _) => self.write_register(dst, lower_word),
-                (7, dst, _, _) => self.write_register(dst, self.read_register(dst) + lower_word),
+                (7, dst, _, _) => self.write_register(dst, self.read_register(dst).overflowing_add(lower_word).0),
                 (8, dst, src, flag) => {
                     let (dst_val, src_val) = (self.read_register(dst), self.read_register(src));
                     let res = match flag {
