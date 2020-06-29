@@ -1,5 +1,9 @@
+use std::io::{Write, stdout, Stdout};
+use termion::raw::{IntoRawMode, RawTerminal};
+
 pub struct Display {
-    lcd: [[u8; 64]; 32]
+    lcd: [[u8; 64]; 32], 
+    stdout: RawTerminal<Stdout>,
 }
 
 impl Display {
@@ -22,14 +26,14 @@ impl Display {
         0xF0, 0x80, 0xF0, 0x80, 0x80,
     ];
 
-    pub fn dump(&self) {
-        for row in &self.lcd {
-            for c in row.iter() {
-                print!("{}", if *c == 1 { '*' } else { ' ' });
+    pub fn dump(&mut self) {
+        write!(self.stdout, "{}{}{}", termion::clear::All, termion::cursor::Goto(1, 1), termion::cursor::Hide).unwrap();
+        for y in 0..32 {
+            for x in 0..64 {
+                write!(self.stdout, "{}{}", termion::cursor::Goto(x + 1, y + 1), if self.lcd[y as usize][x as usize] == 1 { '*' } else { ' ' }).unwrap();
             }
-            println!("");
         }
-        println!("");
+        self.stdout.flush().unwrap();
     }
 
     pub fn write(&mut self, x: u8, y: u8, sprite: &Vec<u8>) -> bool {
@@ -59,6 +63,6 @@ impl Display {
 
 impl Default for Display {
     fn default() -> Self {
-        Display { lcd: [[0; 64]; 32] }
+        Display { lcd: [[0; 64]; 32], stdout: stdout().into_raw_mode().unwrap()}
     }
 }
