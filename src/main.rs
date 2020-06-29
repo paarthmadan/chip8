@@ -1,7 +1,9 @@
 extern crate rand;
+extern crate termion;
 
 mod chip8;
 mod display;
+mod keyboard;
 
 use chip8::Chip8;
 use std::env;
@@ -22,8 +24,6 @@ fn main () {
         eprintln!("Could not load ROM from: {}", filename);
         std::process::exit(1);
     }
-
-    println!("Chip8 Emulator!");
 
     chip.run();
 }

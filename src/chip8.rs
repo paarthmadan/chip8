@@ -1,4 +1,5 @@
 use super::display::Display;
+use super::keyboard;
 
 use rand::Rng;
 use std::fs;
@@ -185,8 +186,14 @@ impl Chip8 {
 
                     self.write_flag(flag as u8);
                 },
+                (0xE, reg, 0x9, 0xE) => {
+                    let res = keyboard::poll();
+                    self.write_register(reg, res);
+                },
+                (0xE, reg, 0xA, 1) => {
+                },
                 (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
-                (0xF, reg, 0, 0xA) => println!("Wait for kp"),
+                (0xF, reg, 0, 0xA) => eprintln!("Wait for kp"),
                 (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
                 (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
                 (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
@@ -217,8 +224,7 @@ impl Chip8 {
 
             self.display.dump();
 
-            thread::sleep(Duration::from_millis(1000 / 60));
-            print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+            thread::sleep(Duration::from_millis(1000 / 30));
         }
     }
 
