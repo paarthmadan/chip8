@@ -59,6 +59,14 @@ impl Processor {
         self.registers[reg as usize] = value;
     }
 
+    fn write_mem_addr_register(&mut self, value: u16) {
+        self.mem_addr_register = value as usize;
+    }
+
+    fn increment_mem_addr_register(&mut self, incr: u8) {
+        self.mem_addr_register += incr as usize;
+    }
+
     fn write_flag(&mut self, value: u8) {
         self.write_register(0xF, value);
     }
@@ -169,7 +177,7 @@ impl Processor {
                     self.pc += 2;
                 }
             },
-            (0xA, _, _, _) => self.mem_addr_register = addr as usize,
+            (0xA, _, _, _) => self.write_mem_addr_register(addr),
             (0xB, _, _, _) => self.jump(addr + self.read_register(0) as u16),
             (0xC, reg, _, _) => {
                 let mut rng = rand::thread_rng();
@@ -203,8 +211,8 @@ impl Processor {
             }
             (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
             (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
-            (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
-            (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
+            (0xF, reg, 1, 0xE) => self.increment_mem_addr_register(self.read_register(reg)),
+            (0xF, reg, 2, 9) => self.increment_mem_addr_register(5 * self.read_register(reg)),
             (0xF, reg, 3, 3) => {
                 let dec = self.read_register(reg);
 
@@ -219,7 +227,7 @@ impl Processor {
                     self.store_word(i, *val);
                 }
 
-                self.mem_addr_register += reg as usize + 1;
+                self.increment_mem_addr_register(reg + 1);
             },
             (0xF, reg, 6, 5) => {
                 let memory_vals: Vec<u8> = (0..=reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
@@ -228,7 +236,7 @@ impl Processor {
                     self.write_register(i as u8, *val);
                 }
 
-                self.mem_addr_register += reg as usize + 1;
+                self.increment_mem_addr_register(reg + 1);
             }
             _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
         }
