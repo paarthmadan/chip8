@@ -187,49 +187,68 @@ impl Chip8 {
                     self.write_flag(flag as u8);
                 },
                 (0xE, reg, 0x9, 0xE) => {
-                    let res = keyboard::poll();
-                    self.write_register(reg, res);
+                    match keyboard::try_poll() {
+                        Some(key) => if key == self.read_register(reg) { self.pc += 2; }
+                        None => {},
+                    }
                 },
                 (0xE, reg, 0xA, 1) => {
+                    match keyboard::try_poll() {
+                        Some(key) => if key != self.read_register(reg) { self.pc += 2; }
+                        None => self.pc += 2,
+                    }
                 },
                 (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
-                (0xF, reg, 0, 0xA) => eprintln!("Wait for kp"),
+                (0xF, reg, 0, 0xA) => {
+                    let res = keyboard::poll();
+                    println!("{}", res);
+                    self.write_register(reg, res);
+                }
                 (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
                 (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
                 (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
                 (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
                 (0xF, reg, 3, 3) => {
-                    let mut dec = self.read_register(reg);
+                    let dec = self.read_register(reg);
 
                     self.store_word(0, dec / 100);
-                    dec %= 100;
-
-                    self.store_word(1, dec / 10);
-                    dec %= 10;
-
-                    self.store_word(2, dec);
+                    self.store_word(1, (dec % 100) / 10);
+                    self.store_word(2, dec % 10);
                 },
                 (0xF, reg, 5, 5) => {
-                    let register_vals: Vec<u8> = self.registers[0..reg as usize].iter().map(|register| self.read_register(*register)).collect();
+                    println!("{}", reg);
+                    let register_vals: Vec<u8> = (0..=reg).into_iter().map(|reg| self.read_register(reg)).collect();
                     for (i, val) in register_vals.iter().enumerate() {
                         self.store_word(i, *val);
                     }
+
+                    self.mem_addr_register += reg as usize + 1;
                 },
                 (0xF, reg, 6, 5) => {
-                    let memory_vals: Vec<u8> = (0..reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
+                    let memory_vals: Vec<u8> = (0..=reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
 
                     for (i, val) in memory_vals.iter().enumerate() {
                         self.write_register(i as u8, *val);
                     }
+
+                    self.mem_addr_register += reg as usize + 1;
                 }
                 _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
             }
 
             self.pc += 2;
 
+            if self.delay > 0 {
+                self.delay -= 1;
+            }
+
+            if self.sound > 0 {
+                self.sound -= 1;
+            }
+
             self.display.dump();
 
-            thread::sleep(Duration::from_millis(1000 / 30));
+            thread::sleep(Duration::from_millis(1000 / 60));
         }
     }
 
