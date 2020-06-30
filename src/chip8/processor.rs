@@ -5,7 +5,8 @@ use rand::Rng;
 use std::fs;
 use std::io;
 
-pub struct Processor { memory: [u8; 4096],
+pub struct Processor { 
+    memory: [u8; 4096],
     registers: [u8; 16],
     mem_addr_register: usize,
     delay: u8,
@@ -13,11 +14,37 @@ pub struct Processor { memory: [u8; 4096],
     pc: usize,
     sp: usize,
     stack: [usize; 16],
-    display: Display,
+    display_matrix: [[u8; 64]; 32], 
 }
+
+pub enum State {
+    Ready,
+    WaitingForIO,
+    Finished,
+}
+
+pub const DIGIT_SPRITES: [u8; 5*16] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0,
+    0x20, 0x60, 0x20, 0x20, 0x70,
+    0xF0, 0x10, 0xF0, 0x80, 0xF0,
+    0xF0, 0x10, 0xF0, 0x10, 0xF0,
+    0x90, 0x90, 0xF0, 0x10, 0x10,
+    0xF0, 0x80, 0xF0, 0x10, 0xF0,
+    0xF0, 0x80, 0xF0, 0x90, 0xF0,
+    0xF0, 0x10, 0x20, 0x40, 0x40,
+    0xF0, 0x90, 0xF0, 0x90, 0xF0,
+    0xF0, 0x90, 0xF0, 0x10, 0xF0,
+    0xF0, 0x90, 0xF0, 0x90, 0x90,
+    0xE0, 0x90, 0xE0, 0x90, 0xE0,
+    0xF0, 0x80, 0x80, 0x80, 0xF0,
+    0xE0, 0x90, 0x90, 0x90, 0xE0,
+    0xF0, 0x80, 0xF0, 0x80, 0xF0,
+    0xF0, 0x80, 0xF0, 0x80, 0x80,
+];
 
 impl Processor {
     const MEM_START: usize = 512;
+
     fn store_word(&mut self, offset: usize, word: u8) {
         self.memory[self.mem_addr_register + offset] = word;
     }
@@ -71,6 +98,34 @@ impl Processor {
         self.write_register(0xF, value);
     }
 
+    fn clear_display(&mut self) {
+        self.display_matrix = [[0; 64]; 32]
+    }
+
+    fn write_display_matrix(&mut self, x: u8, y: u8, sprite: &Vec<u8>) -> bool {
+        let mut changed = false;
+        for (i, row) in sprite.iter().enumerate() {
+            for x_offset in 0..=7 {
+                let px = (x + x_offset) % 64;
+                let py = (y + i as u8) % 32;
+
+                let curr = self.display_matrix[py as usize][px as usize];
+                let new = 0x01 & (row >> (7 - (x_offset)));
+
+                self.display_matrix[py as usize][px as usize] = curr ^ new;
+
+                if !changed && curr == 1 && curr ^ new == 0 {
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    pub fn get_display_matrix(&self) -> &[[u8; 64]; 32] {
+        &self.display_matrix
+    }
+
     pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
         let bytes = fs::read(rom)?;
 
@@ -100,7 +155,7 @@ impl Processor {
 
         // Instruction Execute
         match (a, b, c, d) {
-            (0, 0, 0xE, 0) => self.display.clear(),
+            (0, 0, 0xE, 0) => self.clear_display(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
                 return;
@@ -187,7 +242,7 @@ impl Processor {
             },
             (0xD, x, y, n) =>  {
                 let sprite = self.load_sprite(n);
-                let flag = self.display.write(self.read_register(x), self.read_register(y), &sprite);
+                let flag = self.write_display_matrix(self.read_register(x), self.read_register(y), &sprite);
 
                 self.write_flag(flag as u8);
             },
@@ -250,16 +305,13 @@ impl Processor {
         if self.sound > 0 {
             self.sound -= 1;
         }
-
-        self.display.dump();
-
     }
 }
 
 impl Default for Processor {
     fn default() -> Self {
         let mut memory = [0; 4096];
-        memory[0..Display::DIGIT_SPRITES.len()].copy_from_slice(&Display::DIGIT_SPRITES);
+        memory[0..DIGIT_SPRITES.len()].copy_from_slice(&DIGIT_SPRITES);
 
         Processor {
             memory: memory,
@@ -270,7 +322,7 @@ impl Default for Processor {
             pc: 512,
             sp: 0,
             stack: [0; 16],
-            display: Display::default(),
+            display_matrix: [[0; 64]; 32],
         }
     }
 }

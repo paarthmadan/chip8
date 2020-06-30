@@ -36,6 +36,8 @@ impl Chip8 {
     pub fn run(&mut self) {
         loop {
             self.processor.run_next_cycle();
+            self.display.dump(self.processor.get_display_matrix());
+
             thread::sleep(CLOCK_RATE);
         }
     }
