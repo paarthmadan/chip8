@@ -4,8 +4,6 @@ use super::keyboard;
 use rand::Rng;
 use std::fs;
 use std::io;
-use std::thread;
-use std::time::Duration;
 
 pub struct Processor { memory: [u8; 4096],
     registers: [u8; 16],
@@ -79,179 +77,175 @@ impl Processor {
         Ok(())
     }
 
-    pub fn run(&mut self) {
-        loop {
-            // Instruction Fetch (Load instruction from memory)
-            let upper_word = self.load_word(self.pc);
-            let lower_word = self.load_word(self.pc + 1);
+    pub fn run_next_cycle(&mut self) {
+        // Instruction Fetch (Load instruction from memory)
+        let upper_word = self.load_word(self.pc);
+        let lower_word = self.load_word(self.pc + 1);
 
-            // Instruction Decode
-            let a = upper_word >> 4;
-            let b = (0x0F) & upper_word;
-            let c = lower_word >> 4;
-            let d = (0x0F) & lower_word;
+        // Instruction Decode
+        let a = upper_word >> 4;
+        let b = (0x0F) & upper_word;
+        let c = lower_word >> 4;
+        let d = (0x0F) & lower_word;
 
-            let addr: u16 = ((b as u16) << 8)  + lower_word as u16;
+        let addr: u16 = ((b as u16) << 8)  + lower_word as u16;
 
-            // Instruction Execute
-            match (a, b, c, d) {
-                (0, 0, 0xE, 0) => self.display.clear(),
-                (0, 0, 0xE, 0xE) => {
-                    self.return_from_routine();
-                    continue;
-                },
-                (0, _, _, _) => unimplemented!{},
-                (1, _, _, _) =>  {
-                    self.jump(addr);
-                    continue;
-                }
-                (2, _, _, _) => {
-                    self.call(addr);
-                    continue;
-                },
-                (3, reg, _, _) => {
-                    if self.read_register(reg) == lower_word {
-                        self.pc += 2;
-                    }
-                },
-                (4, reg, _, _) => {
-                    if self.read_register(reg) != lower_word {
-                        self.pc += 2;
-                    }
-                },
-                (5, reg1, reg2, 0) => {
-                    if self.read_register(reg1) == self.read_register(reg2) {
-                        self.pc += 2;
-                    }
-                },
-                (6, dst, _, _) => self.write_register(dst, lower_word),
-                (7, dst, _, _) => self.write_register(dst, self.read_register(dst).overflowing_add(lower_word).0),
-                (8, dst, src, flag) => {
-                    let (dst_val, src_val) = (self.read_register(dst), self.read_register(src));
-                    let res = match flag {
-                        0 => src_val,
-                        1 => dst_val | src_val,
-                        2 => dst_val & src_val,
-                        3 => dst_val ^ src_val,
-                        4 => {
-                            let (sum, overflow) = dst_val.overflowing_add(src_val);
-                            self.write_flag(overflow as u8);
-
-                            sum
-                        },
-                        5 => {
-                            let (diff, borrow) = dst_val.overflowing_sub(src_val);
-                            self.write_flag(!borrow as u8);
-
-                            diff
-                        },
-                        6 => {
-                            let lsb = 0x01 & dst_val;
-                            self.write_flag(lsb);
-
-                            dst_val >> 1
-                        }
-                        7 => {
-                            let (diff, borrow) = src_val.overflowing_sub(dst_val);
-                            self.write_flag(!borrow as u8);
-
-                            diff
-                        },
-                        0xE => {
-                            let msb = dst_val >> 7;
-                            self.write_flag(msb);
-
-                            dst_val << 1
-                        },
-                        _ => unreachable!("Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
-                    };
-                    self.write_register(dst, res);
-                },
-                (9, reg1, reg2, 0) => {
-                    if self.read_register(reg1) != self.read_register(reg2) {
-                        self.pc += 2;
-                    }
-                },
-                (0xA, _, _, _) => self.mem_addr_register = addr as usize,
-                (0xB, _, _, _) => self.jump(addr + self.read_register(0) as u16),
-                (0xC, reg, _, _) => {
-                    let mut rng = rand::thread_rng();
-                    let rand: u8 = rng.gen();
-
-                    self.write_register(reg, rand & lower_word)
-                },
-                (0xD, x, y, n) =>  {
-                    let sprite = self.load_sprite(n);
-                    let flag = self.display.write(self.read_register(x), self.read_register(y), &sprite);
-
-                    self.write_flag(flag as u8);
-                },
-                (0xE, reg, 0x9, 0xE) => {
-                    match keyboard::try_poll() {
-                        Some(key) => if key == self.read_register(reg) { self.pc += 2; }
-                        None => {},
-                    }
-                },
-                (0xE, reg, 0xA, 1) => {
-                    match keyboard::try_poll() {
-                        Some(key) => if key != self.read_register(reg) { self.pc += 2; }
-                        None => self.pc += 2,
-                    }
-                },
-                (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
-                (0xF, reg, 0, 0xA) => {
-                    let res = keyboard::poll();
-                    println!("{}", res);
-                    self.write_register(reg, res);
-                }
-                (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
-                (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
-                (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
-                (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
-                (0xF, reg, 3, 3) => {
-                    let dec = self.read_register(reg);
-
-                    self.store_word(0, dec / 100);
-                    self.store_word(1, (dec % 100) / 10);
-                    self.store_word(2, dec % 10);
-                },
-                (0xF, reg, 5, 5) => {
-                    println!("{}", reg);
-                    let register_vals: Vec<u8> = (0..=reg).into_iter().map(|reg| self.read_register(reg)).collect();
-                    for (i, val) in register_vals.iter().enumerate() {
-                        self.store_word(i, *val);
-                    }
-
-                    self.mem_addr_register += reg as usize + 1;
-                },
-                (0xF, reg, 6, 5) => {
-                    let memory_vals: Vec<u8> = (0..=reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
-
-                    for (i, val) in memory_vals.iter().enumerate() {
-                        self.write_register(i as u8, *val);
-                    }
-
-                    self.mem_addr_register += reg as usize + 1;
-                }
-                _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+        // Instruction Execute
+        match (a, b, c, d) {
+            (0, 0, 0xE, 0) => self.display.clear(),
+            (0, 0, 0xE, 0xE) => {
+                self.return_from_routine();
+                return;
+            },
+            (0, _, _, _) => unimplemented!{},
+            (1, _, _, _) =>  {
+                self.jump(addr);
+                return;
             }
+            (2, _, _, _) => {
+                self.call(addr);
+                return;
+            },
+            (3, reg, _, _) => {
+                if self.read_register(reg) == lower_word {
+                    self.pc += 2;
+                }
+            },
+            (4, reg, _, _) => {
+                if self.read_register(reg) != lower_word {
+                    self.pc += 2;
+                }
+            },
+            (5, reg1, reg2, 0) => {
+                if self.read_register(reg1) == self.read_register(reg2) {
+                    self.pc += 2;
+                }
+            },
+            (6, dst, _, _) => self.write_register(dst, lower_word),
+            (7, dst, _, _) => self.write_register(dst, self.read_register(dst).overflowing_add(lower_word).0),
+            (8, dst, src, flag) => {
+                let (dst_val, src_val) = (self.read_register(dst), self.read_register(src));
+                let res = match flag {
+                    0 => src_val,
+                    1 => dst_val | src_val,
+                    2 => dst_val & src_val,
+                    3 => dst_val ^ src_val,
+                    4 => {
+                        let (sum, overflow) = dst_val.overflowing_add(src_val);
+                        self.write_flag(overflow as u8);
 
-            self.pc += 2;
+                        sum
+                    },
+                    5 => {
+                        let (diff, borrow) = dst_val.overflowing_sub(src_val);
+                        self.write_flag(!borrow as u8);
 
-            if self.delay > 0 {
-                self.delay -= 1;
+                        diff
+                    },
+                    6 => {
+                        let lsb = 0x01 & dst_val;
+                        self.write_flag(lsb);
+
+                        dst_val >> 1
+                    }
+                    7 => {
+                        let (diff, borrow) = src_val.overflowing_sub(dst_val);
+                        self.write_flag(!borrow as u8);
+
+                        diff
+                    },
+                    0xE => {
+                        let msb = dst_val >> 7;
+                        self.write_flag(msb);
+
+                        dst_val << 1
+                    },
+                    _ => unreachable!("Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+                };
+                self.write_register(dst, res);
+            },
+            (9, reg1, reg2, 0) => {
+                if self.read_register(reg1) != self.read_register(reg2) {
+                    self.pc += 2;
+                }
+            },
+            (0xA, _, _, _) => self.mem_addr_register = addr as usize,
+            (0xB, _, _, _) => self.jump(addr + self.read_register(0) as u16),
+            (0xC, reg, _, _) => {
+                let mut rng = rand::thread_rng();
+                let rand: u8 = rng.gen();
+
+                self.write_register(reg, rand & lower_word)
+            },
+            (0xD, x, y, n) =>  {
+                let sprite = self.load_sprite(n);
+                let flag = self.display.write(self.read_register(x), self.read_register(y), &sprite);
+
+                self.write_flag(flag as u8);
+            },
+            (0xE, reg, 0x9, 0xE) => {
+                match keyboard::try_poll() {
+                    Some(key) => if key == self.read_register(reg) { self.pc += 2; }
+                    None => {},
+                }
+            },
+            (0xE, reg, 0xA, 1) => {
+                match keyboard::try_poll() {
+                    Some(key) => if key != self.read_register(reg) { self.pc += 2; }
+                    None => self.pc += 2,
+                }
+            },
+            (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
+            (0xF, reg, 0, 0xA) => {
+                let res = keyboard::poll();
+                println!("{}", res);
+                self.write_register(reg, res);
             }
+            (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
+            (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
+            (0xF, reg, 1, 0xE) => self.mem_addr_register += self.read_register(reg) as usize,
+            (0xF, reg, 2, 9) => self.mem_addr_register += 5 * self.read_register(reg) as usize,
+            (0xF, reg, 3, 3) => {
+                let dec = self.read_register(reg);
 
-            if self.sound > 0 {
-                self.sound -= 1;
+                self.store_word(0, dec / 100);
+                self.store_word(1, (dec % 100) / 10);
+                self.store_word(2, dec % 10);
+            },
+            (0xF, reg, 5, 5) => {
+                println!("{}", reg);
+                let register_vals: Vec<u8> = (0..=reg).into_iter().map(|reg| self.read_register(reg)).collect();
+                for (i, val) in register_vals.iter().enumerate() {
+                    self.store_word(i, *val);
+                }
+
+                self.mem_addr_register += reg as usize + 1;
+            },
+            (0xF, reg, 6, 5) => {
+                let memory_vals: Vec<u8> = (0..=reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
+
+                for (i, val) in memory_vals.iter().enumerate() {
+                    self.write_register(i as u8, *val);
+                }
+
+                self.mem_addr_register += reg as usize + 1;
             }
-
-            self.display.dump();
-
-            thread::sleep(Duration::from_millis(1000 / 60));
+            _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
         }
-    }
 
+        self.pc += 2;
+
+        if self.delay > 0 {
+            self.delay -= 1;
+        }
+
+        if self.sound > 0 {
+            self.sound -= 1;
+        }
+
+        self.display.dump();
+
+    }
 }
 
 impl Default for Processor {

@@ -7,6 +7,10 @@ use display::Display;
 use keyboard::Keyboard;
 
 use std::io;
+use std::thread;
+use std::time::Duration;
+
+const CLOCK_RATE: Duration = Duration::from_millis(1000 / 60);
 
 pub struct Chip8 {
     processor: Processor,
@@ -30,6 +34,9 @@ impl Chip8 {
     }
 
     pub fn run(&mut self) {
-        self.processor.run()
+        loop {
+            self.processor.run_next_cycle();
+            thread::sleep(CLOCK_RATE);
+        }
     }
 }
