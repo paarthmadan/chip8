@@ -2,10 +2,9 @@ extern crate rand;
 extern crate termion;
 
 mod chip8;
-mod display;
-mod keyboard;
 
 use chip8::Chip8;
+
 use std::env;
 
 fn main () {

@@ -3,6 +3,16 @@ use termion::input::TermRead;
 
 use std::io::stdin;
 
+pub struct Keyboard {
+    pad: [bool; 16],
+}
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Keyboard { pad: [false; 16] }
+    }
+}
+
 pub fn try_poll() -> Option<u8> {
     let stdin = stdin();
     let mut keys = stdin.keys().filter_map(|key| key.ok());
