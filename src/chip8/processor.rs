@@ -1,5 +1,3 @@
-use super::keyboard;
-
 use rand::Rng;
 use std::fs;
 use std::io;
