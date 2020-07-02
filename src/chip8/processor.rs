@@ -1,4 +1,3 @@
-use super::display::Display;
 use super::keyboard;
 
 use rand::Rng;
@@ -17,10 +16,9 @@ pub struct Processor {
     display_matrix: [[u8; 64]; 32], 
 }
 
-pub enum State {
+pub enum ProcessorState {
     Ready,
     WaitingForIO,
-    Finished,
 }
 
 pub const DIGIT_SPRITES: [u8; 5*16] = [
@@ -140,7 +138,7 @@ impl Processor {
         Ok(())
     }
 
-    pub fn run_next_cycle(&mut self) {
+    pub fn run_next_cycle(&mut self) -> ProcessorState {
         // Instruction Fetch (Load instruction from memory)
         let upper_word = self.load_word(self.pc);
         let lower_word = self.load_word(self.pc + 1);
@@ -158,16 +156,16 @@ impl Processor {
             (0, 0, 0xE, 0) => self.clear_display(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
-                return;
+                return ProcessorState::Ready
             },
             (0, _, _, _) => unimplemented!{},
             (1, _, _, _) =>  {
                 self.jump(addr);
-                return;
+                return ProcessorState::Ready
             }
             (2, _, _, _) => {
                 self.call(addr);
-                return;
+                return ProcessorState::Ready
             },
             (3, reg, _, _) => {
                 if self.read_register(reg) == lower_word {
@@ -247,22 +245,14 @@ impl Processor {
                 self.write_flag(flag as u8);
             },
             (0xE, reg, 0x9, 0xE) => {
-                match keyboard::try_poll() {
-                    Some(key) => if key == self.read_register(reg) { self.pc += 2; }
-                    None => {},
-                }
+                // access supplied keypad state and do the necessary check
             },
             (0xE, reg, 0xA, 1) => {
-                match keyboard::try_poll() {
-                    Some(key) => if key != self.read_register(reg) { self.pc += 2; }
-                    None => self.pc += 2,
-                }
+                // access supplied keypad state and do the necessary check
             },
             (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
             (0xF, reg, 0, 0xA) => {
-                let res = keyboard::poll();
-                println!("{}", res);
-                self.write_register(reg, res);
+                return ProcessorState::WaitingForIO;
             }
             (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
             (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
@@ -305,6 +295,8 @@ impl Processor {
         if self.sound > 0 {
             self.sound -= 1;
         }
+
+        ProcessorState::Ready
     }
 }
 
