@@ -1,27 +1,26 @@
+use termion::event::Key;
+use termion::input::TermRead;
 
-pub struct Keyboard {
-    pub pad: [bool; 16],
-}
+use super::driver::Keyboard;
 
-impl Default for Keyboard {
-    fn default() -> Self {
-        Keyboard { pad: [false; 16] }
-    }
-}
+use std::io::stdin;
 
-impl Keyboard {
-    pub fn clear(&mut self) {
-        self.pad = [false; 16];
-    }
+use std::thread;
+use std::sync::{Arc, Mutex};
 
-    pub fn toggle(&mut self, key: u8) {
-        self.pad[key as usize] = true;
-    }
-
-    pub fn dump(&self) {
-        for key in &self.pad {
-            print!("{}", if *key == true { "1" } else { "0" });
+pub fn listen(kb: Arc<Mutex<Keyboard>>) {
+    thread::spawn(move || {
+        let stdin = stdin();
+        for key in stdin.keys().filter_map(|k| k.ok()) {
+            match key {
+                Key::Char(c) => {
+                    if let Some(key) = char::to_digit(c, 16) {
+                        let mut kb = kb.lock().unwrap();
+                        kb.toggle(key as u8);
+                    }
+                }
+                _ => continue,
+            }
         }
-        println!("");
-    }
+    });
 }

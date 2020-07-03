@@ -1,6 +1,7 @@
 use rand::Rng;
-use std::fs;
+use std::fs; 
 use std::io;
+use super::driver::Display;
 
 pub struct Processor { 
     memory: [u8; 4096],
@@ -11,7 +12,6 @@ pub struct Processor {
     pc: usize,
     sp: usize,
     stack: [usize; 16],
-    display_matrix: [[u8; 64]; 32], 
 }
 
 pub enum ProcessorState {
@@ -94,34 +94,6 @@ impl Processor {
         self.write_register(0xF, value);
     }
 
-    fn clear_display(&mut self) {
-        self.display_matrix = [[0; 64]; 32]
-    }
-
-    fn write_display_matrix(&mut self, x: u8, y: u8, sprite: &Vec<u8>) -> bool {
-        let mut changed = false;
-        for (i, row) in sprite.iter().enumerate() {
-            for x_offset in 0..=7 {
-                let px = (x + x_offset) % 64;
-                let py = (y + i as u8) % 32;
-
-                let curr = self.display_matrix[py as usize][px as usize];
-                let new = 0x01 & (row >> (7 - (x_offset)));
-
-                self.display_matrix[py as usize][px as usize] = curr ^ new;
-
-                if !changed && curr == 1 && curr ^ new == 0 {
-                    changed = true;
-                }
-            }
-        }
-        return changed;
-    }
-
-    pub fn get_display_matrix(&self) -> &[[u8; 64]; 32] {
-        &self.display_matrix
-    }
-
     pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
         let bytes = fs::read(rom)?;
 
@@ -136,7 +108,7 @@ impl Processor {
         Ok(())
     }
 
-    pub fn run_next_cycle(&mut self) -> ProcessorState {
+    pub fn next(&mut self, input: &[bool; 16], display: &mut Display) -> ProcessorState {
         // Instruction Fetch (Load instruction from memory)
         let upper_word = self.load_word(self.pc);
         let lower_word = self.load_word(self.pc + 1);
@@ -147,11 +119,13 @@ impl Processor {
         let c = lower_word >> 4;
         let d = (0x0F) & lower_word;
 
+        //println!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d);
+
         let addr: u16 = ((b as u16) << 8)  + lower_word as u16;
 
         // Instruction Execute
         match (a, b, c, d) {
-            (0, 0, 0xE, 0) => self.clear_display(),
+            (0, 0, 0xE, 0) => display.clear_buffer(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
                 return ProcessorState::Ready
@@ -238,19 +212,28 @@ impl Processor {
             },
             (0xD, x, y, n) =>  {
                 let sprite = self.load_sprite(n);
-                let flag = self.write_display_matrix(self.read_register(x), self.read_register(y), &sprite);
+                let flag = display.write_buffer(self.read_register(x), self.read_register(y), &sprite);
 
                 self.write_flag(flag as u8);
             },
             (0xE, reg, 0x9, 0xE) => {
-                // access supplied keypad state and do the necessary check
+                if input[self.read_register(reg) as usize] == true {
+                    self.pc += 2;
+                }
             },
             (0xE, reg, 0xA, 1) => {
-                // access supplied keypad state and do the necessary check
+                if input[self.read_register(reg) as usize] == false {
+                    self.pc += 2;
+                }
             },
             (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
             (0xF, reg, 0, 0xA) => {
-                return ProcessorState::WaitingForIO;
+                match input.into_iter().position(|&k| k == true) {
+                    Some(index) => {
+                        self.write_register(reg, index as u8);
+                    },
+                    None => return ProcessorState::WaitingForIO,
+                }
             }
             (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
             (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
@@ -312,7 +295,6 @@ impl Default for Processor {
             pc: 512,
             sp: 0,
             stack: [0; 16],
-            display_matrix: [[0; 64]; 32],
         }
     }
 }

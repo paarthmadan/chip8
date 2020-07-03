@@ -3,14 +3,14 @@ mod hardware;
 mod driver;
 
 use processor::{Processor, ProcessorState};
-use hardware::{Display, Keyboard};
+use driver::{Display, Keyboard};
 
 use std::io;
 use std::thread;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
-const CLOCK_RATE: Duration = Duration::from_millis(1000 / 10);
+const CLOCK_RATE: Duration = Duration::from_millis(1000 / 60);
 
 pub struct Chip8 {
     processor: Processor,
@@ -20,15 +20,11 @@ pub struct Chip8 {
 
 impl Default for Chip8 {
     fn default() -> Self {
-        let kb = Keyboard::default();
-        let kb = Arc::new(Mutex::new(kb));
-
-        driver::keyboard::start_keyboard_listener(Arc::clone(&kb));
 
         Chip8 {
             processor: Processor::default(),
             display: Display::default(),
-            keyboard: kb,
+            keyboard: Keyboard::default().start_listening(),
         }
     }
 }
@@ -40,16 +36,19 @@ impl Chip8 {
 
     pub fn run(&mut self) {
         loop {
-            match self.processor.run_next_cycle() {
+            let mut input = self.keyboard.lock().unwrap();
+            let buffer = input.read();
+
+            match self.processor.next(buffer, &mut self.display) {
                 ProcessorState::Ready => {
-                    self.display.dump(self.processor.get_display_matrix());
+                    self.display.output();
+                    input.clear_state();
                 },
                 ProcessorState::WaitingForIO => {
+                    continue;
                 }
             }
-            let mut kb = self.keyboard.lock().unwrap();
-            kb.dump();
-            kb.clear();
+
             thread::sleep(CLOCK_RATE);
         }
     }

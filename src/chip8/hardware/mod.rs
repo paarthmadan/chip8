@@ -1,5 +1,5 @@
 mod display;
-mod keyboard;
+pub mod keyboard;
 
 pub use display::Display;
-pub use keyboard::Keyboard;
+use super::driver;

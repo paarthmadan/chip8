@@ -1,26 +1,41 @@
-use super::hardware::Keyboard;
+use super::hardware;
 
-use termion::event::Key;
-use termion::input::TermRead;
-
-use std::io::stdin;
-
-use std::thread;
 use std::sync::{Arc, Mutex};
 
-pub fn start_keyboard_listener(kb: Arc<Mutex<Keyboard>>) {
-    thread::spawn(move || {
-        let stdin = stdin();
-        for key in stdin.keys().filter_map(|k| k.ok()) {
-            match key {
-                Key::Char(c) => {
-                    if let Some(key) = char::to_digit(c, 16) {
-                        let mut kb = kb.lock().unwrap();
-                        kb.toggle(key as u8);
-                    }
-                }
-                _ => continue,
-            }
+pub struct Keyboard {
+    pad: [bool; 16],
+}
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Keyboard { pad: [false; 16] }
+    }
+}
+
+impl Keyboard {
+    pub fn start_listening(self) -> Arc<Mutex<Self>> {
+        let mutex = Arc::new(Mutex::new(self));
+        hardware::keyboard::listen(Arc::clone(&mutex));
+
+        mutex
+    }
+
+    pub fn clear_state(&mut self) {
+        self.pad = [false; 16];
+    }
+
+    pub fn toggle(&mut self, key: u8) {
+        self.pad[key as usize] = true;
+    }
+
+    pub fn read(&self) -> &[bool; 16] {
+        &self.pad
+    }
+
+    pub fn dump(&self) {
+        for key in &self.pad {
+            print!("{}", if *key == true { "1" } else { "0" });
         }
-    });
+        println!("");
+    }
 }
