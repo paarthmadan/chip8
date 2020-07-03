@@ -10,7 +10,7 @@ impl Display {
         self.lcd.dump(&self.buffer);
     }
 
-    pub fn write_buffer(&mut self, x: u8, y: u8, sprite: &Vec<u8>) -> bool {
+    pub fn write_buffer(&mut self, x: u8, y: u8, sprite: &[u8]) -> bool {
         let mut changed = false;
         for (i, row) in sprite.iter().enumerate() {
             for x_offset in 0..=7 {

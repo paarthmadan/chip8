@@ -29,16 +29,14 @@ impl Default for Chip8 {
 }
 
 impl Chip8 {
-    pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
+    pub fn load_rom(&mut self, rom: &str) -> Result<(), io::Error> {
         self.processor.load_rom(rom)
     }
 
     pub fn run(&mut self) {
         loop {
             let input = self.keyboard.lock().unwrap();
-            let buffer = input.read().clone();
-
-            input.dump();
+            let buffer = *input.read();
 
             std::mem::drop(input);
 

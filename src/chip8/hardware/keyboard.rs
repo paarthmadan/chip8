@@ -7,7 +7,6 @@ use std::io::stdin;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 
 pub fn listen(kb: Arc<Mutex<Keyboard>>) {
     thread::spawn(move || {

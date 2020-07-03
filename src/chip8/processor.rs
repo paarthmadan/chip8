@@ -83,7 +83,7 @@ impl Processor {
         self.write_register(0xF, value);
     }
 
-    pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
+    pub fn load_rom(&mut self, rom: &str) -> Result<(), io::Error> {
         let bytes = fs::read(rom)?;
 
         let prog_end = Processor::MEM_START + bytes.len();
@@ -218,18 +218,18 @@ impl Processor {
             }
             (0xE, reg, 0x9, 0xE) => {
                 should_flush = true;
-                if input[self.read_register(reg) as usize] == true {
+                if input[self.read_register(reg) as usize] {
                     self.pc += 2;
                 }
             }
             (0xE, reg, 0xA, 1) => {
                 should_flush = true;
-                if input[self.read_register(reg) as usize] == false {
+                if !input[self.read_register(reg) as usize] {
                     self.pc += 2;
                 }
             }
             (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
-            (0xF, reg, 0, 0xA) => match input.into_iter().position(|&k| k == true) {
+            (0xF, reg, 0, 0xA) => match input.iter().position(|&k| k) {
                 Some(index) => {
                     self.write_register(reg, index as u8);
                     should_flush = true;
@@ -250,7 +250,6 @@ impl Processor {
             (0xF, reg, 5, 5) => {
                 println!("{}", reg);
                 let register_vals: Vec<u8> = (0..=reg)
-                    .into_iter()
                     .map(|reg| self.read_register(reg))
                     .collect();
                 for (i, val) in register_vals.iter().enumerate() {
@@ -261,7 +260,6 @@ impl Processor {
             }
             (0xF, reg, 6, 5) => {
                 let memory_vals: Vec<u8> = (0..=reg)
-                    .into_iter()
                     .map(|i| self.load_word(self.mem_addr_register + i as usize))
                     .collect();
 
@@ -297,7 +295,7 @@ impl Default for Processor {
         memory[0..DIGIT_SPRITES.len()].copy_from_slice(&DIGIT_SPRITES);
 
         Processor {
-            memory: memory,
+            memory,
             registers: [0; 16],
             mem_addr_register: 0,
             delay: 0,

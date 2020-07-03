@@ -35,7 +35,7 @@ impl Keyboard {
 
     pub fn dump(&self) {
         for key in &self.pad {
-            print!("{}", if *key == true { "1" } else { "0" });
+            print!("{}", if *key { "1" } else { "0" });
         }
         println!("");
     }
