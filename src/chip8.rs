@@ -1,14 +1,14 @@
-mod processor;
-mod hardware;
 mod driver;
+mod hardware;
+mod processor;
 
-use processor::{Processor, ProcessorState};
 use driver::{Display, Keyboard};
+use processor::{Processor, ProcessorState};
 
 use std::io;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use std::sync::{Arc, Mutex};
 
 const CLOCK_RATE: Duration = Duration::from_millis(1000 / 250);
 
@@ -20,7 +20,6 @@ pub struct Chip8 {
 
 impl Default for Chip8 {
     fn default() -> Self {
-
         Chip8 {
             processor: Processor::default(),
             display: Display::default(),
@@ -30,7 +29,7 @@ impl Default for Chip8 {
 }
 
 impl Chip8 {
-    pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error>  {
+    pub fn load_rom(&mut self, rom: &String) -> Result<(), io::Error> {
         self.processor.load_rom(rom)
     }
 
@@ -41,18 +40,17 @@ impl Chip8 {
 
             input.dump();
 
-
             std::mem::drop(input);
 
-           let now = SystemTime::now();
+            let now = SystemTime::now();
 
             match self.processor.next(&buffer, &mut self.display) {
                 ProcessorState::Continue(flush) => {
                     self.display.output();
-                    if flush { 
-                        self.keyboard.lock().unwrap().clear_state(); 
+                    if flush {
+                        self.keyboard.lock().unwrap().clear_state();
                     }
-                },
+                }
                 ProcessorState::BlockForIO => {
                     continue;
                 }
@@ -64,5 +62,3 @@ impl Chip8 {
         }
     }
 }
-
-

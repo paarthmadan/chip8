@@ -37,6 +37,9 @@ impl Display {
 
 impl Default for Display {
     fn default() -> Self {
-        Display { buffer: [[0; 64]; 32], lcd: hardware::Display::default() }
+        Display {
+            buffer: [[0; 64]; 32],
+            lcd: hardware::Display::default(),
+        }
     }
 }

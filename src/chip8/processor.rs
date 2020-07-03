@@ -1,9 +1,9 @@
-use rand::Rng;
-use std::fs; 
-use std::io;
 use super::driver::Display;
+use rand::Rng;
+use std::fs;
+use std::io;
 
-pub struct Processor { 
+pub struct Processor {
     memory: [u8; 4096],
     registers: [u8; 16],
     mem_addr_register: usize,
@@ -19,23 +19,12 @@ pub enum ProcessorState {
     BlockForIO,
 }
 
-pub const DIGIT_SPRITES: [u8; 5*16] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0,
-    0x20, 0x60, 0x20, 0x20, 0x70,
-    0xF0, 0x10, 0xF0, 0x80, 0xF0,
-    0xF0, 0x10, 0xF0, 0x10, 0xF0,
-    0x90, 0x90, 0xF0, 0x10, 0x10,
-    0xF0, 0x80, 0xF0, 0x10, 0xF0,
-    0xF0, 0x80, 0xF0, 0x90, 0xF0,
-    0xF0, 0x10, 0x20, 0x40, 0x40,
-    0xF0, 0x90, 0xF0, 0x90, 0xF0,
-    0xF0, 0x90, 0xF0, 0x10, 0xF0,
-    0xF0, 0x90, 0xF0, 0x90, 0x90,
-    0xE0, 0x90, 0xE0, 0x90, 0xE0,
-    0xF0, 0x80, 0x80, 0x80, 0xF0,
-    0xE0, 0x90, 0x90, 0x90, 0xE0,
-    0xF0, 0x80, 0xF0, 0x80, 0xF0,
-    0xF0, 0x80, 0xF0, 0x80, 0x80,
+pub const DIGIT_SPRITES: [u8; 5 * 16] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0,
+    0x10, 0xF0, 0x10, 0xF0, 0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80,
+    0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40, 0xF0, 0x90, 0xF0, 0x90, 0xF0, 0xF0, 0x90, 0xF0,
+    0x10, 0xF0, 0xF0, 0x90, 0xF0, 0x90, 0x90, 0xE0, 0x90, 0xE0, 0x90, 0xE0, 0xF0, 0x80, 0x80, 0x80,
+    0xF0, 0xE0, 0x90, 0x90, 0x90, 0xE0, 0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80, 0xF0, 0x80, 0x80,
 ];
 
 impl Processor {
@@ -51,7 +40,7 @@ impl Processor {
 
     fn load_sprite(&self, n: u8) -> Vec<u8> {
         let mut sprite: Vec<u8> = Vec::with_capacity(n as usize);
-        
+
         for i in 0..n {
             sprite.push(self.load_word(self.mem_addr_register + i as usize));
         }
@@ -100,7 +89,10 @@ impl Processor {
         let prog_end = Processor::MEM_START + bytes.len();
 
         if prog_end > 4096 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "ROM exceeds 4096 bytes"))
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ROM exceeds 4096 bytes",
+            ));
         }
 
         self.memory[Processor::MEM_START..prog_end].copy_from_slice(&bytes);
@@ -123,41 +115,43 @@ impl Processor {
 
         //println!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d);
 
-        let addr: u16 = ((b as u16) << 8)  + lower_word as u16;
+        let addr: u16 = ((b as u16) << 8) + lower_word as u16;
 
         // Instruction Execute
         match (a, b, c, d) {
             (0, 0, 0xE, 0) => display.clear_buffer(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
-                return ProcessorState::Continue(false)
-            },
-            (0, _, _, _) => unimplemented!{},
-            (1, _, _, _) =>  {
+                return ProcessorState::Continue(false);
+            }
+            (0, _, _, _) => unimplemented! {},
+            (1, _, _, _) => {
                 self.jump(addr);
-                return ProcessorState::Continue(false)
+                return ProcessorState::Continue(false);
             }
             (2, _, _, _) => {
                 self.call(addr);
-                return ProcessorState::Continue(false)
-            },
+                return ProcessorState::Continue(false);
+            }
             (3, reg, _, _) => {
                 if self.read_register(reg) == lower_word {
                     self.pc += 2;
                 }
-            },
+            }
             (4, reg, _, _) => {
                 if self.read_register(reg) != lower_word {
                     self.pc += 2;
                 }
-            },
+            }
             (5, reg1, reg2, 0) => {
                 if self.read_register(reg1) == self.read_register(reg2) {
                     self.pc += 2;
                 }
-            },
+            }
             (6, dst, _, _) => self.write_register(dst, lower_word),
-            (7, dst, _, _) => self.write_register(dst, self.read_register(dst).overflowing_add(lower_word).0),
+            (7, dst, _, _) => {
+                self.write_register(dst, self.read_register(dst).overflowing_add(lower_word).0)
+            }
             (8, dst, src, flag) => {
                 let (dst_val, src_val) = (self.read_register(dst), self.read_register(src));
                 let res = match flag {
@@ -170,13 +164,13 @@ impl Processor {
                         self.write_flag(overflow as u8);
 
                         sum
-                    },
+                    }
                     5 => {
                         let (diff, borrow) = dst_val.overflowing_sub(src_val);
                         self.write_flag(!borrow as u8);
 
                         diff
-                    },
+                    }
                     6 => {
                         let lsb = 0x01 & dst_val;
                         self.write_flag(lsb);
@@ -188,22 +182,25 @@ impl Processor {
                         self.write_flag(!borrow as u8);
 
                         diff
-                    },
+                    }
                     0xE => {
                         let msb = dst_val >> 7;
                         self.write_flag(msb);
 
                         dst_val << 1
-                    },
-                    _ => unreachable!("Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+                    }
+                    _ => unreachable!(
+                        "Arithmetic Instruction not supported: {:x?}{:x?}{:x?}{:x?}",
+                        a, b, c, d
+                    ),
                 };
                 self.write_register(dst, res);
-            },
+            }
             (9, reg1, reg2, 0) => {
                 if self.read_register(reg1) != self.read_register(reg2) {
                     self.pc += 2;
                 }
-            },
+            }
             (0xA, _, _, _) => self.write_mem_addr_register(addr),
             (0xB, _, _, _) => self.jump(addr + self.read_register(0) as u16),
             (0xC, reg, _, _) => {
@@ -211,35 +208,34 @@ impl Processor {
                 let rand: u8 = rng.gen();
 
                 self.write_register(reg, rand & lower_word)
-            },
-            (0xD, x, y, n) =>  {
+            }
+            (0xD, x, y, n) => {
                 let sprite = self.load_sprite(n);
-                let flag = display.write_buffer(self.read_register(x), self.read_register(y), &sprite);
+                let flag =
+                    display.write_buffer(self.read_register(x), self.read_register(y), &sprite);
 
                 self.write_flag(flag as u8);
-            },
+            }
             (0xE, reg, 0x9, 0xE) => {
                 should_flush = true;
                 if input[self.read_register(reg) as usize] == true {
                     self.pc += 2;
                 }
-            },
+            }
             (0xE, reg, 0xA, 1) => {
                 should_flush = true;
                 if input[self.read_register(reg) as usize] == false {
                     self.pc += 2;
                 }
-            },
-            (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
-            (0xF, reg, 0, 0xA) => {
-                match input.into_iter().position(|&k| k == true) {
-                    Some(index) => {
-                        self.write_register(reg, index as u8);
-                        should_flush = true;
-                    },
-                    None => return ProcessorState::BlockForIO,
-                }
             }
+            (0xF, reg, 0, 7) => self.write_register(reg, self.delay),
+            (0xF, reg, 0, 0xA) => match input.into_iter().position(|&k| k == true) {
+                Some(index) => {
+                    self.write_register(reg, index as u8);
+                    should_flush = true;
+                }
+                None => return ProcessorState::BlockForIO,
+            },
             (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
             (0xF, reg, 1, 8) => self.sound = self.read_register(reg),
             (0xF, reg, 1, 0xE) => self.increment_mem_addr_register(self.read_register(reg)),
@@ -250,18 +246,24 @@ impl Processor {
                 self.store_word(0, dec / 100);
                 self.store_word(1, (dec % 100) / 10);
                 self.store_word(2, dec % 10);
-            },
+            }
             (0xF, reg, 5, 5) => {
                 println!("{}", reg);
-                let register_vals: Vec<u8> = (0..=reg).into_iter().map(|reg| self.read_register(reg)).collect();
+                let register_vals: Vec<u8> = (0..=reg)
+                    .into_iter()
+                    .map(|reg| self.read_register(reg))
+                    .collect();
                 for (i, val) in register_vals.iter().enumerate() {
                     self.store_word(i, *val);
                 }
 
                 self.increment_mem_addr_register(reg + 1);
-            },
+            }
             (0xF, reg, 6, 5) => {
-                let memory_vals: Vec<u8> = (0..=reg).into_iter().map(|i| self.load_word(self.mem_addr_register + i as usize)).collect();
+                let memory_vals: Vec<u8> = (0..=reg)
+                    .into_iter()
+                    .map(|i| self.load_word(self.mem_addr_register + i as usize))
+                    .collect();
 
                 for (i, val) in memory_vals.iter().enumerate() {
                     self.write_register(i as u8, *val);
@@ -269,7 +271,10 @@ impl Processor {
 
                 self.increment_mem_addr_register(reg + 1);
             }
-            _ => unreachable!("Instruction not supported: {:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+            _ => unreachable!(
+                "Instruction not supported: {:x?}{:x?}{:x?}{:x?}",
+                a, b, c, d
+            ),
         }
 
         self.pc += 2;

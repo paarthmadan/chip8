@@ -1,7 +1,7 @@
-mod keyboard;
 mod display;
+mod keyboard;
 
-pub use keyboard::Keyboard;
 pub use display::Display;
+pub use keyboard::Keyboard;
 
 use super::hardware;
