@@ -25,6 +25,7 @@ impl Keyboard {
     }
 
     pub fn toggle(&mut self, key: u8) {
+        println!("{}", key);
         self.pad[key as usize] = true;
     }
 

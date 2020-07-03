@@ -6,6 +6,7 @@ use super::driver::Keyboard;
 use std::io::stdin;
 
 use std::thread;
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 pub fn listen(kb: Arc<Mutex<Keyboard>>) {
@@ -15,8 +16,10 @@ pub fn listen(kb: Arc<Mutex<Keyboard>>) {
             match key {
                 Key::Char(c) => {
                     if let Some(key) = char::to_digit(c, 16) {
-                        let mut kb = kb.lock().unwrap();
-                        kb.toggle(key as u8);
+                        match kb.try_lock() {
+                            Ok(mut kb) => kb.toggle(key as u8),
+                            Err(_) => println!("foke"),
+                        }
                     }
                 }
                 _ => continue,

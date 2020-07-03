@@ -15,8 +15,8 @@ pub struct Processor {
 }
 
 pub enum ProcessorState {
-    Ready,
-    WaitingForIO,
+    Continue(bool),
+    BlockForIO,
 }
 
 pub const DIGIT_SPRITES: [u8; 5*16] = [
@@ -109,6 +109,8 @@ impl Processor {
     }
 
     pub fn next(&mut self, input: &[bool; 16], display: &mut Display) -> ProcessorState {
+        let mut should_flush: bool = false;
+
         // Instruction Fetch (Load instruction from memory)
         let upper_word = self.load_word(self.pc);
         let lower_word = self.load_word(self.pc + 1);
@@ -128,16 +130,16 @@ impl Processor {
             (0, 0, 0xE, 0) => display.clear_buffer(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
-                return ProcessorState::Ready
+                return ProcessorState::Continue(false)
             },
             (0, _, _, _) => unimplemented!{},
             (1, _, _, _) =>  {
                 self.jump(addr);
-                return ProcessorState::Ready
+                return ProcessorState::Continue(false)
             }
             (2, _, _, _) => {
                 self.call(addr);
-                return ProcessorState::Ready
+                return ProcessorState::Continue(false)
             },
             (3, reg, _, _) => {
                 if self.read_register(reg) == lower_word {
@@ -217,11 +219,13 @@ impl Processor {
                 self.write_flag(flag as u8);
             },
             (0xE, reg, 0x9, 0xE) => {
+                should_flush = true;
                 if input[self.read_register(reg) as usize] == true {
                     self.pc += 2;
                 }
             },
             (0xE, reg, 0xA, 1) => {
+                should_flush = true;
                 if input[self.read_register(reg) as usize] == false {
                     self.pc += 2;
                 }
@@ -231,8 +235,9 @@ impl Processor {
                 match input.into_iter().position(|&k| k == true) {
                     Some(index) => {
                         self.write_register(reg, index as u8);
+                        should_flush = true;
                     },
-                    None => return ProcessorState::WaitingForIO,
+                    None => return ProcessorState::BlockForIO,
                 }
             }
             (0xF, reg, 1, 5) => self.delay = self.read_register(reg),
@@ -277,7 +282,7 @@ impl Processor {
             self.sound -= 1;
         }
 
-        ProcessorState::Ready
+        ProcessorState::Continue(should_flush)
     }
 }
 

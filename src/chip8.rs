@@ -7,10 +7,10 @@ use driver::{Display, Keyboard};
 
 use std::io;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::sync::{Arc, Mutex};
 
-const CLOCK_RATE: Duration = Duration::from_millis(1000 / 60);
+const CLOCK_RATE: Duration = Duration::from_millis(1000 / 250);
 
 pub struct Chip8 {
     processor: Processor,
@@ -36,18 +36,29 @@ impl Chip8 {
 
     pub fn run(&mut self) {
         loop {
-            let mut input = self.keyboard.lock().unwrap();
-            let buffer = input.read();
+            let input = self.keyboard.lock().unwrap();
+            let buffer = input.read().clone();
 
-            match self.processor.next(buffer, &mut self.display) {
-                ProcessorState::Ready => {
+            input.dump();
+
+
+            std::mem::drop(input);
+
+           let now = SystemTime::now();
+
+            match self.processor.next(&buffer, &mut self.display) {
+                ProcessorState::Continue(flush) => {
                     self.display.output();
-                    input.clear_state();
+                    if flush { 
+                        self.keyboard.lock().unwrap().clear_state(); 
+                    }
                 },
-                ProcessorState::WaitingForIO => {
+                ProcessorState::BlockForIO => {
                     continue;
                 }
             }
+
+            println!("{}", now.elapsed().unwrap().as_millis());
 
             thread::sleep(CLOCK_RATE);
         }
