@@ -17,6 +17,8 @@
 - [ ] Scale "hardware" display (apply a linear scale on the display matrix)
 - [ ] Refactor to opt for idiomatic Rust
 - [ ] Custom clock rate
+- [ ] Add terminate path
+- [ ] Handle finished execution
 
 
 #### Resources
