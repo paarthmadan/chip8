@@ -1,6 +1,6 @@
 use std::io::{stdout, Stdout, Write};
-use termion::raw::{IntoRawMode, RawTerminal};
 use termion::color;
+use termion::raw::{IntoRawMode, RawTerminal};
 
 pub struct Display {
     stdout: RawTerminal<Stdout>,

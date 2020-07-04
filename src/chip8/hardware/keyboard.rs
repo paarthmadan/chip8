@@ -17,7 +17,7 @@ pub fn listen(kb: Arc<Mutex<Keyboard>>) {
                     if let Some(key) = char::to_digit(c, 16) {
                         match kb.try_lock() {
                             Ok(mut kb) => kb.toggle(key as u8),
-                            Err(_) => println!("foke"),
+                            Err(_) => continue,
                         }
                     }
                 }

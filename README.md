@@ -23,6 +23,32 @@ _A set of ROMs run on this emulator (The maze, "IBM", and "Chip8" are pictures, 
 #### Features
 - This emulator is capable of running a handful of the most popular ROMs. I've personally tested _Pong_, _Tetris_, _Space Invaders_ and a few others, all of which can be found [here](https://github.com/dmatlack/chip8/tree/master/roms).
 
+#### Installation
+```sh
+  $ git clone https://github.com/paarthmadan/chip8.git && cd chip8
+  $ cargo install --path .
+```
+
+#### Usage
+```
+  chip8 0.1.0
+  A CHIP-8 VM emulator.
+
+  USAGE:
+      chip8 [OPTIONS] <PATH_TO_ROM>
+
+  FLAGS:
+      -h, --help       Prints help information
+      -V, --version    Prints version information
+
+  OPTIONS:
+      -c, --clock-rate <clock-rate>     [default: 250]
+      -s, --symbol <symbol>             [default: █]
+
+  ARGS:
+      <PATH_TO_ROM>    
+```
+
 #### What's Left?
 - [ ] Custom colours and output symbol
 - [ ] Scale "hardware" display (apply a linear scale on the display matrix)

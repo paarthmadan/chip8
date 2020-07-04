@@ -100,6 +100,7 @@ impl Processor {
         Ok(())
     }
 
+    // TODO: Move all opcode procedures into separate methods
     pub fn next(&mut self, input: &[bool; 16], display: &mut Display) -> ProcessorState {
         let mut should_flush: bool = false;
 
@@ -112,8 +113,6 @@ impl Processor {
         let b = (0x0F) & upper_word;
         let c = lower_word >> 4;
         let d = (0x0F) & lower_word;
-
-        //println!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d);
 
         let addr: u16 = ((b as u16) << 8) + lower_word as u16;
 
