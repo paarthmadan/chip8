@@ -16,7 +16,7 @@
 - [ ] Custom colours and output symbol
 - [ ] Scale "hardware" display (apply a linear scale on the display matrix)
 - [ ] Refactor to opt for idiomatic Rust
-- [ ] Custom clock rate
+- [x] Custom clock rate
 - [ ] Add terminate path
 - [ ] Handle finished execution
 

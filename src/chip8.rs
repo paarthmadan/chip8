@@ -10,19 +10,21 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-const CLOCK_RATE: Duration = Duration::from_millis(1000 / 250);
+use super::Opt;
 
 pub struct Chip8 {
     processor: Processor,
     display: Display,
     keyboard: Arc<Mutex<Keyboard>>,
+    clock_rate: Duration,
 }
 
-impl Default for Chip8 {
-    fn default() -> Self {
+impl From<&Opt> for Chip8 {
+    fn from(opt: &Opt) -> Self {
         Chip8 {
+            clock_rate: Duration::from_millis(1000 / opt.clock_rate as u64),
             processor: Processor::default(),
-            display: Display::default(),
+            display: Display::from(opt),
             keyboard: Keyboard::default().start_listening(),
         }
     }
@@ -56,7 +58,7 @@ impl Chip8 {
 
             println!("{}", now.elapsed().unwrap().as_millis());
 
-            thread::sleep(CLOCK_RATE);
+            thread::sleep(self.clock_rate);
         }
     }
 }

@@ -1,4 +1,5 @@
 use super::hardware;
+use super::Opt;
 
 pub struct Display {
     buffer: [[u8; 64]; 32],
@@ -35,11 +36,11 @@ impl Display {
     }
 }
 
-impl Default for Display {
-    fn default() -> Self {
+impl From<&Opt> for Display {
+    fn from(opt: &Opt) -> Self {
         Display {
             buffer: [[0; 64]; 32],
-            lcd: hardware::Display::default(),
+            lcd: hardware::Display::new(opt.symbol),
         }
     }
 }

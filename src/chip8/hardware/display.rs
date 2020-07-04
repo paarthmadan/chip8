@@ -3,6 +3,7 @@ use termion::raw::{IntoRawMode, RawTerminal};
 
 pub struct Display {
     stdout: RawTerminal<Stdout>,
+    symbol: char,
 }
 
 impl Display {
@@ -22,7 +23,7 @@ impl Display {
                     "{}{}",
                     termion::cursor::Goto(x + 1, y + 1),
                     if display_matrix[y as usize][x as usize] == 1 {
-                        '*'
+                        self.symbol
                     } else {
                         ' '
                     }
@@ -32,11 +33,10 @@ impl Display {
         }
         self.stdout.flush().unwrap();
     }
-}
 
-impl Default for Display {
-    fn default() -> Self {
+    pub fn new(symbol: char) -> Self {
         Display {
+            symbol,
             stdout: stdout().into_raw_mode().unwrap(),
         }
     }

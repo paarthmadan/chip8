@@ -249,9 +249,7 @@ impl Processor {
             }
             (0xF, reg, 5, 5) => {
                 println!("{}", reg);
-                let register_vals: Vec<u8> = (0..=reg)
-                    .map(|reg| self.read_register(reg))
-                    .collect();
+                let register_vals: Vec<u8> = (0..=reg).map(|reg| self.read_register(reg)).collect();
                 for (i, val) in register_vals.iter().enumerate() {
                     self.store_word(i, *val);
                 }
