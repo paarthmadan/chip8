@@ -1,5 +1,16 @@
 ### Chip8 Emulator, written in _Rust_
 
+<p>
+  <img src="assets/maze.png" width="250", height="250">
+  <img src="assets/space1.png" width="250", height="250">
+  <img src="assets/space2.png" width="250", height="250">
+  <img src="assets/ibm.png" width="250", height="250">
+  <img src="assets/chip8.png" width="250", height="250">
+  <img src="assets/tetris.png" width="250", height="250">
+</p>
+
+_A set of ROMs run on this emulator (The maze, "IBM", and "Chip8" are pictures, while "Space Invaders" and "Tetris" are playable)._
+
 #### What is it?
 - CHIP-8, is an interpreted programming language, that was designed for the COSMAC VIP and Telmac computers.
 - The programs are run on a CHIP-8 virtual machine, which each of the respective computers implemented. 

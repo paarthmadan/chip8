@@ -1,5 +1,6 @@
 use std::io::{stdout, Stdout, Write};
 use termion::raw::{IntoRawMode, RawTerminal};
+use termion::color;
 
 pub struct Display {
     stdout: RawTerminal<Stdout>,
@@ -20,8 +21,9 @@ impl Display {
             for x in 0..64 {
                 write!(
                     self.stdout,
-                    "{}{}",
+                    "{}{}{}",
                     termion::cursor::Goto(x + 1, y + 1),
+                    color::Fg(color::LightMagenta),
                     if display_matrix[y as usize][x as usize] == 1 {
                         self.symbol
                     } else {
@@ -31,7 +33,6 @@ impl Display {
                 .unwrap();
             }
         }
-        self.stdout.flush().unwrap();
     }
 
     pub fn new(symbol: char) -> Self {
