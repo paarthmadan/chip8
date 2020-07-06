@@ -15,7 +15,7 @@ pub struct Processor {
 }
 
 pub enum ProcessorState {
-    Continue(bool),
+    Continue,
     BlockForIO,
 }
 
@@ -102,8 +102,6 @@ impl Processor {
 
     // TODO: Move all opcode procedures into separate methods
     pub fn next(&mut self, input: &[bool; 16], display: &mut Display) -> ProcessorState {
-        let mut should_flush: bool = false;
-
         // Instruction Fetch (Load instruction from memory)
         let upper_word = self.load_word(self.pc);
         let lower_word = self.load_word(self.pc + 1);
@@ -121,16 +119,16 @@ impl Processor {
             (0, 0, 0xE, 0) => display.clear_buffer(),
             (0, 0, 0xE, 0xE) => {
                 self.return_from_routine();
-                return ProcessorState::Continue(false);
+                return ProcessorState::Continue;
             }
             (0, _, _, _) => unimplemented! {},
             (1, _, _, _) => {
                 self.jump(addr);
-                return ProcessorState::Continue(false);
+                return ProcessorState::Continue;
             }
             (2, _, _, _) => {
                 self.call(addr);
-                return ProcessorState::Continue(false);
+                return ProcessorState::Continue;
             }
             (3, reg, _, _) => {
                 if self.read_register(reg) == lower_word {
@@ -216,13 +214,11 @@ impl Processor {
                 self.write_flag(flag as u8);
             }
             (0xE, reg, 0x9, 0xE) => {
-                should_flush = true;
                 if input[self.read_register(reg) as usize] {
                     self.pc += 2;
                 }
             }
             (0xE, reg, 0xA, 1) => {
-                should_flush = true;
                 if !input[self.read_register(reg) as usize] {
                     self.pc += 2;
                 }
@@ -231,7 +227,6 @@ impl Processor {
             (0xF, reg, 0, 0xA) => match input.iter().position(|&k| k) {
                 Some(index) => {
                     self.write_register(reg, index as u8);
-                    should_flush = true;
                 }
                 None => return ProcessorState::BlockForIO,
             },
@@ -282,7 +277,7 @@ impl Processor {
             self.sound -= 1;
         }
 
-        ProcessorState::Continue(should_flush)
+        ProcessorState::Continue
     }
 }
 

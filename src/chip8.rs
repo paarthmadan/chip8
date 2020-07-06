@@ -45,11 +45,9 @@ impl Chip8 {
             let now = SystemTime::now();
 
             match self.processor.next(&buffer, &mut self.display) {
-                ProcessorState::Continue(flush) => {
+                ProcessorState::Continue => {
                     self.display.output();
-                    if flush {
-                        self.keyboard.lock().unwrap().clear_state();
-                    }
+                    self.keyboard.lock().unwrap().clear_state();
                 }
                 ProcessorState::BlockForIO => {
                     continue;
