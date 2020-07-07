@@ -52,7 +52,7 @@ _A set of ROMs run on this emulator (The maze, "IBM", and "Chip8" are pictures, 
 #### What's Left?
 - [ ] Custom colours and output symbol
 - [ ] Scale "hardware" display (apply a linear scale on the display matrix)
-- [ ] Refactor to opt for idiomatic Rust
+- [x] Refactor to opt for idiomatic Rust
 - [x] Custom clock rate
 - [ ] Add terminate path
 - [ ] Handle finished execution

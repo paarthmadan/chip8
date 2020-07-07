@@ -205,6 +205,20 @@ impl Processor {
         Increment
     }
 
+    fn instruction_fetch(&self) -> (u8, u8) {
+        (self.load_word(self.pc), self.load_word(self.pc + 1))
+    }
+
+    fn instruction_decode(&self, double_word: (u8, u8)) -> (u8, u8, u8, u8) {
+        let (upper_word, lower_word) = double_word;
+        let a = upper_word >> 4;
+        let b = (0x0F) & upper_word;
+        let c = lower_word >> 4;
+        let d = (0x0F) & lower_word;
+
+        (a, b, c, d)
+    }
+
     pub fn load_rom(&mut self, rom: &str) -> Result<(), io::Error> {
         let bytes = fs::read(rom)?;
 
@@ -223,20 +237,13 @@ impl Processor {
     }
 
     pub fn next(&mut self, input: &[bool; 16], display: &mut Display) -> ProcessorState {
-        // Instruction Fetch (Load instruction from memory)
-        let upper_word = self.load_word(self.pc);
-        let lower_word = self.load_word(self.pc + 1);
+        let double_word = self.instruction_fetch();
+        let opcode = self.instruction_decode(double_word);
 
-        // Instruction Decode
-        let a = upper_word >> 4;
-        let b = (0x0F) & upper_word;
-        let c = lower_word >> 4;
-        let d = (0x0F) & lower_word;
+        let (_, lower_word) = double_word;
+        let addr: u16 = ((opcode.1 as u16) << 8) + lower_word as u16;
 
-        let addr: u16 = ((b as u16) << 8) + lower_word as u16;
-
-        // Instruction Execute
-        let pc_state: ProgramCounter = match (a, b, c, d) {
+        let pc_state: ProgramCounter = match opcode {
             (0x0, 0x0, 0xE, 0x0)   => self.clear_display(display),
             (0x0, 0x0, 0xE, 0xE)   => self.return_from_routine(),
             (0x0, _, _, _)         => unimplemented! {},
@@ -264,7 +271,7 @@ impl Processor {
             (0xF, reg, 0x3, 0x3)   => self.write_bcd(reg),
             (0xF, reg, 0x5, 0x5)   => self.store_registers(reg),
             (0xF, reg, 0x6, 0x5)   => self.load_registers(reg),
-            _                      => unreachable!("{:x?}{:x?}{:x?}{:x?}", a, b, c, d),
+            _                      => unreachable!("{:#?}", opcode),
         };
 
         match pc_state {
